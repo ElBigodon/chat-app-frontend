@@ -8,20 +8,23 @@ import JoinRoomCard from '@/components/JoinRoomCard.vue';
 import Notification from '@/components/Notification.vue';
 import TextField from '@/components/TextField.vue';
 import { $axios } from '@/config/axios';
-import { reactive, ref } from 'vue';
+import { onMounted, reactive, ref } from 'vue';
 
 const joinDialog = ref(false)
 
 const currentRoom = reactive({
   id: 0,
   name: '???',
+  messages: []
 });
 
 const userName = ref('')
 
 const notification = ref(false)
 
-const currentSelection = ref(2)
+const currentSelection = ref(0)
+
+const rooms = ref([])
 
 const notificationMessage = ref('')
 
@@ -30,20 +33,15 @@ const loading = ref(false)
 const createRoomFormData = reactive({
   userName: '',
   roomName: '',
-  roomPassword: '',
-  isPrivate: false
 });
 
-function handleSubmit() {
+function handleCreateRoom() {
   switch (true) {
     case !createRoomFormData.userName:
       notificationMessage.value = 'Seu nome é obrigatório'
       break;
     case !createRoomFormData.roomName:
       notificationMessage.value = 'Nome da sala é obrigatório'
-      break;
-    case createRoomFormData.isPrivate && !createRoomFormData.roomPassword:
-      notificationMessage.value = 'Senha da sala é obrigatório'
       break;
   }
 
@@ -52,15 +50,61 @@ function handleSubmit() {
     return
   }
 
-  $axios.get('/rooms').then(({ data }) => {
-    console.log(data);
+  const { roomName: name, userName: owner } = createRoomFormData;
+
+  $axios.post('/rooms/create', { name, owner }).then(({ data }) => {
+    notification.value = true
+    notificationMessage.value = 'Sala criada com sucesso'
+    currentSelection.value = 2
+
+    window.localStorage.setItem('user_data', JSON.stringify({
+      userName: data.owner.name,
+      userId: data.owner.id
+    }))
+
+    window.localStorage.setItem('current_room', JSON.stringify({
+      id: data.id,
+      roomName: data.name,
+      code: data.code,
+      userName: data.owner.name,
+      userId: data.owner.id,
+      isOwner: true,
+    }));
   })
 }
 
-function handleJoinRoom(room) {
-  joinDialog.value = true
+function handleFetchRooms() {
+  $axios.get('/rooms').then(({ data }) => {
+    rooms.value = data
+  })
+}
 
-  Object.assign(currentRoom, room)
+function getUserData() {
+  return JSON.parse(window.localStorage.getItem('user_data'));
+}
+
+function handleJoinRoom({ id, name, owner, code }) {
+  const userData = getUserData();
+
+  Object.assign(currentRoom, {
+    id: id,
+    roomName: name,
+    code: code
+  });
+
+  if (userData) {
+    Object.assign(currentRoom, {
+      ...userData,
+      isOwner: owner.id === userData.userId
+    });
+
+    userName.value = userData.userName
+
+    handleConfirmJoinRoom();
+  } else {
+    joinDialog.value = true
+  }
+  
 }
 
 function handleConfirmJoinRoom() {
@@ -69,17 +113,68 @@ function handleConfirmJoinRoom() {
     notification.value = true
     return
   }
+
+  $axios.post(`/rooms/join/${currentRoom.id}`, { name: userName.value }).then(({ data }) => {
+    const userData = getUserData();
+
+    if (userData === null) {
+      window.localStorage.setItem('user_data', JSON.stringify({
+        userName: userName.value,
+        userId: data.owner.id
+      }));
+    }
+
+    window.localStorage.setItem('current_room', JSON.stringify(Object.assign(currentRoom, {
+      userName: data.owner.name,
+      userId: data.owner.id,
+      isOwner: userData.userId === data.owner.id
+    })));
   
-  joinDialog.value = false
-  currentSelection.value = 2
+    joinDialog.value = false
+    currentSelection.value = 2
+  })
 }
+
+function handleExitRoom() {
+  currentSelection.value = 1
+
+  window.localStorage.removeItem('current_room');
+}
+
+function handleSubmitMessage(content) {
+  const userData = JSON.parse(window.localStorage.getItem('user_data'));
+  
+  $axios.post(`/rooms/message/${currentRoom.id}/${userData.userId}`, { content }).then(({ data }) => {
+    currentRoom.messages.push(data)
+  })
+}
+
+function handleFetchMessages() {
+  $axios.get(`/rooms/messages/${currentRoom.id}`).then(({ data }) => {
+    currentRoom.messages.push(...data)
+  })
+}
+
+onMounted(() => {
+  const rawCurrentRoom = window.localStorage.getItem('current_room');
+
+  if (rawCurrentRoom !== null) {
+    const { roomName, ...room } = JSON.parse(rawCurrentRoom);
+    
+    Object.assign(currentRoom, room, { name: roomName });
+
+    currentSelection.value = 2
+
+    return;
+  }
+});
 
 </script>
 
 <template>
   <div class="w-screen h-screen flex justify-center items-center bg-vanta-black">
     <Card no-scroll class="w-[400px] min-h-[300px] flex flex-col !h-auto">
-      <div class="w-full flex items-center justify-between text-text space-x-2 mb-4">
+      <div v-if="currentSelection !== 2" class="w-full flex items-center justify-between text-text space-x-2 mb-4">
         <Button @click="currentSelection = 0">
           Criar Sala
         </Button>
@@ -94,25 +189,27 @@ function handleConfirmJoinRoom() {
           v-model="createRoomFormData"
           :disabled="loading"
           :loading="loading"
-          @submit.prevent="handleSubmit" 
+          @submit.prevent="handleCreateRoom" 
         />
 
         <JoinRoomCard
           v-if="currentSelection === 1"
           v-model="createRoomFormData"
+          :rooms="rooms"
           :disabled="loading"
           :loading="loading"
+          @mounted="handleFetchRooms"
           @join="handleJoinRoom"
         />
 
         <CurrentRoomCard
-          @go-back="currentSelection = 1"
+          @mounted="handleFetchMessages"
+          @send-message="handleSubmitMessage"
+          @go-back="handleExitRoom"
           flat 
           :room="currentRoom"
           v-if="currentSelection === 2"
-        >
-
-        </CurrentRoomCard>
+        />
       </TransitionGroup>
     </Card>
   </div>

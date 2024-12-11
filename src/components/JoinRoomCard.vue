@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, ref, watch } from 'vue'
+import { onMounted, reactive, ref, watch } from 'vue'
 import TextField from '@/components/TextField.vue'
 import Card from '@/components/Card.vue'
 import TextItem from './TextItem.vue'
@@ -20,20 +20,17 @@ const props = defineProps({
   },
   rooms: {
     type: Array,
-    default: () => [
-      {
-        id: 1,
-        name: 'test',
-      }
-    ]
+    default: () => []
   }
 })
 
-const emit = defineEmits(['update:modelValue', 'join'])
+const emit = defineEmits(['update:modelValue', 'join', 'mounted'])
 
 const internalFormData = reactive(props.modelValue)
 
 watch(internalFormData, (changes) => emit('update:modelValue', changes), { deep: true })
+
+onMounted(() => emit('mounted'))
 
 </script>
 

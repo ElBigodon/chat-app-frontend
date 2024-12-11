@@ -1,4 +1,5 @@
 <script setup lang="js">
+import { onMounted, ref } from 'vue';
 import Button from './Button.vue';
 import Card from './Card.vue';
 import ArrowLeft from './Icons/ArrowLeft.vue';
@@ -12,50 +13,53 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['goBack'])
+const message = ref('')
+
+const emit = defineEmits(['goBack', 'sendMessage', 'mounted'])
+
+onMounted(() => emit('mounted'))
 
 </script>
 
 <template>
   <Card>
     <div class="flex flex-col gap-y-4">
-      <div class="w-full flex items-center justify-between">
-        <div class="flex items-center space-x-2">
-          <ArrowLeft @click="emit('goBack')" class="text-primary cursor-pointer w-5 h-5" />
-          <span>ID: {{ Math.random().toString(36).substring(2, 9) }}</span>
-        </div>
-        
-        <h3 class="text-2xl font-medium">
-          Sala {{ props.room.name }}
-        </h3>
+      <div class="w-full flex gap-x-4 items-center">
+        <ArrowLeft @click="emit('goBack')" class="text-primary cursor-pointer w-5 h-5" />
+        <span class="text-xl font-medium">Sala {{ props.room.name }}</span>
       </div>
 
       <div class="flex flex-col gap-y-2">
         <Card class="bg-secondary h-[300px]">
-          <div class="space-y-2" v-for="i in 20" :key="i">
+          <div class="space-y-2 first:mt-0" v-for="{ created_at, content, user, room } in room.messages || []" :key="i">
             <MessageBox 
-              name="nhac"
-              :issued-by="new Date().toLocaleString('pt-BR')"
-              content="
-                Lorem ipsum dolor sit amet consectetur adipisicing elit. Dignissimos ipsum vitae sunt impedit. Saepe
-                cupiditate ducimus
-                reprehenderit illo iure deleniti, vitae labore ipsam sequi dolore earum, odio, eveniet excepturi atque!"
+              :name="user.name"
+              class="mt-2"
+              :issued-by="new Date(created_at).toLocaleTimeString('pt-BR')"
+              :is-owner="user.id === room.owner.id"
+              :content="content"
               />
           </div>
         </Card>
 
         <Transition>
-          <div class="w-full pt-2">
+          <div v-if="false" class="w-full pt-2">
             alexandre está digitando ...
           </div>
         </Transition>
 
-        <div class="w-full flex gap-x-4">
-          <TextField :label="false" class="flex-1" />
-          <Button class="basis-1/4">
+        <form class="w-full flex gap-x-4" @submit.prevent="emit('sendMessage', message)">
+          <TextField type="submit" v-model="message" :label="false" class="flex-1" />
+          <Button type="submit" class="basis-1/4">
             Enviar
           </Button>
-        </div>
+        </form>
+      </div>
+
+      <div>
+        <span class="font-sm font-medium">
+          ID Sala: {{ props.room.code }}
+        </span>
       </div>
     </div>
   </Card>

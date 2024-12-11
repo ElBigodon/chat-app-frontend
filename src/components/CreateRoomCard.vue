@@ -3,7 +3,6 @@ import { reactive, watch } from 'vue'
 import TextField from '@/components/TextField.vue'
 import Card from '@/components/Card.vue'
 import Button from '@/components/Button.vue'
-import SelectBox from '@/components/SelectBox.vue'
 
 const props = defineProps({
   modelValue: {
@@ -46,7 +45,7 @@ watch(internalFormData, (changes) => emit('update:modelValue', changes), { deep:
       />
   
       <Button :disabled="props.disabled" type="submit">
-        Criar Sala
+        Confirmar
       </Button>
     </form>
     
