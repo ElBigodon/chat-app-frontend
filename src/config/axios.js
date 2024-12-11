@@ -1,6 +1,6 @@
 import Axios from 'axios';
 
-const url = new URL('/api', import.meta.env.VITE_APP_BACKEND_URL);
+const url = new URL('/api', import.meta.env.VITE_APP_BACKEND_URL || 'http://localhost:8000');
 
 console.log(url);
 
