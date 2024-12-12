@@ -29,7 +29,7 @@ const props = defineProps({
       {{ props.name }} {{ issuedBy }}
     </span>
 
-    <span class="bg-white rounded px-4 pb-4" :class="{
+    <span class="bg-white rounded p-4 pt-2" :class="{
       '!bg-secondary': props.isOwner
     }">
       {{ props.content }}

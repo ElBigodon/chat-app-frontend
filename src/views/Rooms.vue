@@ -83,6 +83,10 @@ function getUserData() {
   return JSON.parse(window.localStorage.getItem('user_data'));
 }
 
+function getCurrentRoom() {
+  return JSON.parse(window.localStorage.getItem('current_room'));
+}
+
 function handleJoinRoom({ id, name, owner, code }) {
   const userData = getUserData();
 
@@ -164,6 +168,12 @@ onMounted(() => {
     Object.assign(currentRoom, room, { name: roomName });
 
     currentSelection.value = 2
+
+    window.Echo.private(`Message.Received.${currentRoom.id}.${currentRoom.userId}`).listen('message.received', ({ message }) => {
+      console.log(message);
+      
+      currentRoom.messages.push(message)
+    })
 
     return;
   }
